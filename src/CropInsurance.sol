@@ -23,7 +23,19 @@ contract CropInsurance {
 
   address public owner;
   mapping(address => Policy) public policies;
-
   
 
+  constructor(){
+    owner = msg.sender;
+  }
+
+  modifier onlyOwner(){
+    require(msg.sender == owner, "not owner");
+    _;
+  }
+
+  modifier hasActivePolicy(address _farmer){
+    require(policies[_farmer].status == PolicyStatus.ACTIVE, "No active policy");
+    _;
+  }
 }
