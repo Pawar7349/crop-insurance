@@ -4,7 +4,6 @@ pragma solidity ^0.8.24;
 import {Test} from "forge-std/Test.sol";
 import {CropInsurance} from "../src/CropInsurance.sol";
 
-
 contract CropInsuranceTest is Test {
   CropInsurance public insurance;
   address public farmer;
@@ -73,7 +72,7 @@ contract CropInsuranceTest is Test {
     vm.prank(farmer);
     vm.expectRevert("incorrect premium amount");
     insurance.registerPolicy{value: 0.001 ether}("wheat", 5);
-  }
+  } 
 
   function test_OnlyOwnerCanProcess() public{
     
@@ -88,21 +87,23 @@ contract CropInsuranceTest is Test {
     insurance.processClaim(farmer);
   }
 
-  function test_expirePolicy() public {
+  function test_expirePolicy() public{
     vm.deal(farmer, 1 ether);
     vm.prank(farmer);
     insurance.registerPolicy{value: 0.005 ether}("wheat", 5);
     
     insurance.activatePolicy(farmer);
-
+    
+    uint256 balanceBefore = farmer.balance;
+    
     vm.warp(block.timestamp + 181 days);
 
     insurance.expirePolicy(farmer);
 
     CropInsurance.Policy memory policy = insurance.getPolicy(farmer);
-    assertEq(uint(policy.status), uint(CropInsurance.PolicyStatus.EXPIRED));
 
+    assertEq(uint(policy.status), uint(CropInsurance.PolicyStatus.EXPIRED));
+    assertGt(farmer.balance , balanceBefore);
   }
 
-  
 }

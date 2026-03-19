@@ -42,6 +42,7 @@ contract CropInsurance {
   event PolicyCreated(address indexed farmer, string cropType, uint256 coverageAmount);
   event ClaimPaid(address indexed farmer, uint amount );
   event PolicyExpired(address indexed farmer);
+  event PremiumRefunded(address indexed farmer, uint256 amount);
 
   function registerPolicy(string memory _cropType, uint256 _landArea) external payable{
 
@@ -83,10 +84,15 @@ contract CropInsurance {
   }
 
   function expirePolicy (address _farmer) external hasActivePolicy(_farmer) {
+
     require(block.timestamp > policies[_farmer].endDate, "Policy not expired yet");
+
+    uint256 refund = policies[_farmer].premiumPaid/2;
+    payable(_farmer).transfer(refund);
     policies[_farmer].status = PolicyStatus.EXPIRED;
 
     emit PolicyExpired(_farmer);
+    emit PremiumRefunded(_farmer, refund);
   }
 
   function getPolicy(address _farmer) external view returns(Policy memory){
