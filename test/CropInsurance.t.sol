@@ -64,6 +64,7 @@ contract CropInsuranceTest is Test {
 
     // check farmer got paid
     assertGt(farmer.balance, 0);
+    
 
   }
 
@@ -73,8 +74,36 @@ contract CropInsuranceTest is Test {
     insurance.registerPolicy("wheat", 5); 
   }
 
-  
+  function test_OnlyOwnerCanProcess() public{
+    
+    vm.deal(farmer, 1 ether);
+    vm.prank(farmer);
+    insurance.registerPolicy{value: 0.1 ether}("wheat", 5);
+    
+    address randomPerson = makeAddr("randomPerson");
+    vm.prank(randomPerson);
 
+    vm.expectRevert("not owner");
+    insurance.processClaim(farmer);
+  }
+
+  function test_expirePolicy() public {
+    vm.deal(farmer, 1 ether);
+    vm.prank(farmer);
+    insurance.registerPolicy{value: 0.1 ether}("wheat", 5);
+    
+    insurance.activatePolicy(farmer);
+
+    vm.warp(block.timestamp + 181 days);
+
+    insurance.expirePolicy(farmer);
+
+    CropInsurance.Policy memory policy = insurance.getPolicy(farmer);
+    assertEq(uint(policy.status), uint(CropInsurance.PolicyStatus.EXPIRED));
+
+  }
+
+  
 
 
 }

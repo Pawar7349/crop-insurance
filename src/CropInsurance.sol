@@ -90,4 +90,6 @@ contract CropInsurance {
     return policies[_farmer];
   }
 
+  
+
 }
