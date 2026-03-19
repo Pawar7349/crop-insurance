@@ -44,7 +44,10 @@ contract CropInsurance {
   event PolicyExpired(address indexed farmer);
 
   function registerPolicy(string memory _cropType, uint256 _landArea) external payable{
-    require(msg.value > 0,  "send eth to buy policy");
+
+    uint256 requiredPremium = calculatePremium(_cropType, _landArea);
+    require(msg.value == requiredPremium, "incorrect premium amount");
+
     require(policies[msg.sender].status == PolicyStatus.INACTIVE || policies[msg.sender].farmer == address(0), "Policy already exiests");
 
     uint256 premium = msg.value;
@@ -90,6 +93,24 @@ contract CropInsurance {
     return policies[_farmer];
   }
 
-  
+  function calculatePremium(string memory _cropType, uint256 _landArea) public pure returns (uint256) {
+    
+    uint256 premium;
+
+    if(keccak256(abi.encodePacked(_cropType)) == keccak256(abi.encodePacked("wheat"))){
+      premium = _landArea * 0.001 ether;
+    }
+    else if(keccak256(abi.encodePacked(_cropType)) == keccak256(abi.encodePacked("rice"))){
+      premium = _landArea * 0.002 ether;
+    }
+    else if(keccak256(abi.encodePacked(_cropType)) == keccak256(abi.encodePacked("cotton"))){
+      premium = _landArea * 0.003 ether;
+    }
+    else{
+      revert("unsupported Crop");
+    }
+
+    return premium;
+  }
 
 }
