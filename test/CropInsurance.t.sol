@@ -33,4 +33,48 @@ contract CropInsuranceTest is Test {
     assertEq(policy.coverageAmount, 1 ether);
   }
 
+  function test_ActivatePolicy() public {
+    vm.deal(farmer, 1 ether);
+
+    vm.prank(farmer);
+    insurance.registerPolicy{value: 0.1 ether}("wheat", 5);
+
+    insurance.activatePolicy(farmer);
+    CropInsurance.Policy memory policy = insurance.getPolicy(farmer);
+
+    assertEq(uint(policy.status), uint(CropInsurance.PolicyStatus.ACTIVE));
+
+  }
+
+  function test_processClaim() public {
+    
+    vm.deal(farmer, 1 ether);
+
+    vm.prank(farmer);
+    insurance.registerPolicy{value: 0.1 ether}("wheat", 5);
+
+    insurance.activatePolicy(farmer);
+    
+    vm.deal(address(insurance), 1 ether);
+
+    insurance.processClaim(farmer);
+    CropInsurance.Policy memory policy = insurance.getPolicy(farmer);
+
+    assertEq(uint(policy.status), uint(CropInsurance.PolicyStatus.CLAIMED));
+
+    // check farmer got paid
+    assertGt(farmer.balance, 0);
+
+  }
+
+  function test_RevertIfNoPremium() public {
+    vm.prank(farmer);
+    vm.expectRevert("send eth to buy policy");
+    insurance.registerPolicy("wheat", 5); 
+  }
+
+  
+
+
+
 }
