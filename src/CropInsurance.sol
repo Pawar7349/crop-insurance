@@ -23,12 +23,12 @@ contract CropInsurance {
 
   address public owner;
   mapping(address => Policy) public policies;
+  uint256 public totalActiveCoverage;
   
 
   constructor(){
     owner = msg.sender;
   }
-
   modifier onlyOwner(){
     require(msg.sender == owner, "not owner");
     _;
@@ -72,11 +72,13 @@ contract CropInsurance {
   function activatePolicy(address _farmer) external onlyOwner {
     require(policies[_farmer].status == PolicyStatus.INACTIVE, "Policy not inactive");
     policies[_farmer].status = PolicyStatus.ACTIVE;
+    totalActiveCoverage += policies[_farmer].coverageAmount;
   }
 
   function processClaim (address _farmer) external onlyOwner hasActivePolicy(_farmer) {
     uint256 payout = policies[_farmer].coverageAmount;
     payable(_farmer).transfer(payout);
+    totalActiveCoverage -= policies[_farmer].coverageAmount;
     policies[_farmer].status = PolicyStatus.CLAIMED;
 
     emit ClaimPaid(_farmer, payout);
@@ -89,6 +91,8 @@ contract CropInsurance {
 
     uint256 refund = policies[_farmer].premiumPaid/2;
     payable(_farmer).transfer(refund);
+
+    totalActiveCoverage -= policies[_farmer].coverageAmount;
     policies[_farmer].status = PolicyStatus.EXPIRED;
 
     emit PolicyExpired(_farmer);
@@ -118,5 +122,13 @@ contract CropInsurance {
 
     return premium;
   }
+
+  function withdrawProfit() external onlyOwner{
+    require(address(this).balance > totalActiveCoverage, "no excess funds");
+    uint256 profit = address(this).balance - totalActiveCoverage;
+    payable(owner).transfer(profit);
+  }
+
+  
 
 }

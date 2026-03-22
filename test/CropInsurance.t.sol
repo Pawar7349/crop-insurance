@@ -3,10 +3,12 @@ pragma solidity ^0.8.24;
 
 import {Test} from "forge-std/Test.sol";
 import {CropInsurance} from "../src/CropInsurance.sol";
+import {console} from "forge-std/console.sol";
 
 contract CropInsuranceTest is Test {
   CropInsurance public insurance;
   address public farmer;
+  receive() external payable {}
 
   function setUp() public {
     farmer = makeAddr("farmer");
@@ -87,6 +89,7 @@ contract CropInsuranceTest is Test {
     insurance.processClaim(farmer);
   }
 
+
   function test_expirePolicy() public{
     vm.deal(farmer, 1 ether);
     vm.prank(farmer);
@@ -105,5 +108,27 @@ contract CropInsuranceTest is Test {
     assertEq(uint(policy.status), uint(CropInsurance.PolicyStatus.EXPIRED));
     assertGt(farmer.balance , balanceBefore);
   }
+
+
+  function test_withdrawProfit() public{
+    vm.deal(farmer, 1 ether);
+    vm.prank(farmer);
+    insurance.registerPolicy{value: 0.005 ether}("wheat", 5);
+    insurance.activatePolicy(farmer);
+    vm.deal(address(insurance), 1 ether);
+
+    // debug
+    console.log("balance:", address(insurance).balance);
+    console.log("coverage:", insurance.totalActiveCoverage());
+    uint256 balanceBefore = address(this).balance;
+    insurance.withdrawProfit();
+    assertGt(address(this).balance, balanceBefore); 
+  }
+
+
+  
+
+  
+
 
 }
