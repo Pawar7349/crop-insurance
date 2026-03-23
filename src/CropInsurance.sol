@@ -1,7 +1,10 @@
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
+import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
+
 
 contract CropInsurance {
+  AggregatorV3Interface public priceFeed;
 
   enum PolicyStatus {
     INACTIVE,
@@ -26,9 +29,11 @@ contract CropInsurance {
   uint256 public totalActiveCoverage;
   
 
-  constructor(){
+  constructor(address _priceFeed){
     owner = msg.sender;
+    priceFeed = AggregatorV3Interface(_priceFeed);
   }
+
   modifier onlyOwner(){
     require(msg.sender == owner, "not owner");
     _;
@@ -68,6 +73,7 @@ contract CropInsurance {
     emit PolicyCreated(msg.sender, _cropType, coverage);
 
   }
+
 
   function activatePolicy(address _farmer) external onlyOwner {
     require(policies[_farmer].status == PolicyStatus.INACTIVE, "Policy not inactive");
@@ -129,6 +135,20 @@ contract CropInsurance {
     payable(owner).transfer(profit);
   }
 
-  
+  function getLatestPrice() public view returns (int256) {
+    (
+      ,
+      int256 price,
+      ,
+      ,
+    ) = priceFeed.latestRoundData();
+    return price;
+  }
+
+
 
 }
+
+
+
+

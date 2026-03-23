@@ -5,6 +5,21 @@ import {Test} from "forge-std/Test.sol";
 import {CropInsurance} from "../src/CropInsurance.sol";
 import {console} from "forge-std/console.sol";
 
+
+contract MockPriceFeed {
+  int256 public price;
+
+  constructor(int256 _price) {
+    price = _price;
+  }
+
+  function latestRoundData() external view returns(
+    uint80, int256, uint256, uint256, uint80
+  ) {
+    return (0, price, 0, 0, 0);
+  }
+}
+
 contract CropInsuranceTest is Test {
   CropInsurance public insurance;
   address public farmer;
@@ -12,7 +27,9 @@ contract CropInsuranceTest is Test {
 
   function setUp() public {
     farmer = makeAddr("farmer");
-    insurance = new CropInsurance();
+    MockPriceFeed mockFeed = new MockPriceFeed(2000e8);
+    insurance = new CropInsurance(address(mockFeed));
+
   }
 
   function test_RegisterPolicy() public {
@@ -126,9 +143,13 @@ contract CropInsuranceTest is Test {
   }
 
 
+
+
+
   
 
   
 
 
 }
+
