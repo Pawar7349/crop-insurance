@@ -23,22 +23,22 @@ contract MockPriceFeed {
 contract CropInsuranceTest is Test {
   CropInsurance public insurance;
   address public farmer;
-  receive() external payable {}
+  receive() external payable{}
 
   function setUp() public {
     farmer = makeAddr("farmer");
     MockPriceFeed mockFeed = new MockPriceFeed(2000e8);
     insurance = new CropInsurance(address(mockFeed));
-
   }
 
   function test_RegisterPolicy() public {
     //give farmer eth 
     vm.deal(farmer, 1 ether);
 
-    // farmer calls registerPolicy
+    //farmer calls registerPolicy
+    uint256 premium = insurance.calculatePremium("wheat", 5);
     vm.prank(farmer);
-    insurance.registerPolicy{value: 0.005 ether}("wheat", 5);
+    insurance.registerPolicy{value: premium}("wheat", 5);
 
     //check policy was created 
     CropInsurance.Policy memory policy = insurance.getPolicy(farmer);
@@ -54,8 +54,9 @@ contract CropInsuranceTest is Test {
   function test_ActivatePolicy() public {
     vm.deal(farmer, 1 ether);
 
+    uint256 premium = insurance.calculatePremium("wheat", 5);
     vm.prank(farmer);
-    insurance.registerPolicy{value: 0.005 ether}("wheat", 5);
+    insurance.registerPolicy{value: premium}("wheat", 5);
 
     insurance.activatePolicy(farmer);
     CropInsurance.Policy memory policy = insurance.getPolicy(farmer);
@@ -69,7 +70,8 @@ contract CropInsuranceTest is Test {
     vm.deal(farmer, 1 ether);
 
     vm.prank(farmer);
-    insurance.registerPolicy{value: 0.005 ether}("wheat", 5);
+    uint256 premium = insurance.calculatePremium("wheat", 5);
+    insurance.registerPolicy{value: premium}("wheat", 5);
 
     insurance.activatePolicy(farmer);
     
@@ -89,6 +91,7 @@ contract CropInsuranceTest is Test {
   function test_RevertIfNoPremium() public {
     vm.deal(farmer, 1 ether);
     vm.prank(farmer);
+
     vm.expectRevert("incorrect premium amount");
     insurance.registerPolicy{value: 0.001 ether}("wheat", 5);
   } 
@@ -97,7 +100,8 @@ contract CropInsuranceTest is Test {
     
     vm.deal(farmer, 1 ether);
     vm.prank(farmer);
-    insurance.registerPolicy{value: 0.005 ether}("wheat", 5);
+    uint256 premium = insurance.calculatePremium("wheat", 5);
+    insurance.registerPolicy{value: premium}("wheat", 5);
     
     address randomPerson = makeAddr("randomPerson");
     vm.prank(randomPerson);
@@ -107,30 +111,31 @@ contract CropInsuranceTest is Test {
   }
 
 
-  function test_expirePolicy() public{
+ function test_expirePolicy() public {
     vm.deal(farmer, 1 ether);
+    uint256 premium = insurance.calculatePremium("wheat", 5);
     vm.prank(farmer);
-    insurance.registerPolicy{value: 0.005 ether}("wheat", 5);
+    insurance.registerPolicy{value: premium}("wheat", 5);
     
     insurance.activatePolicy(farmer);
-    
-    uint256 balanceBefore = farmer.balance;
+    vm.deal(address(insurance), 1 ether);
     
     vm.warp(block.timestamp + 181 days);
 
+    uint256 balanceBefore = farmer.balance;
     insurance.expirePolicy(farmer);
 
     CropInsurance.Policy memory policy = insurance.getPolicy(farmer);
-
     assertEq(uint(policy.status), uint(CropInsurance.PolicyStatus.EXPIRED));
-    assertGt(farmer.balance , balanceBefore);
-  }
-
+    assertGt(farmer.balance, balanceBefore);
+}
 
   function test_withdrawProfit() public{
     vm.deal(farmer, 1 ether);
     vm.prank(farmer);
-    insurance.registerPolicy{value: 0.005 ether}("wheat", 5);
+
+    uint256 premium = insurance.calculatePremium("wheat", 5);
+    insurance.registerPolicy{value: premium}("wheat", 5);
     insurance.activatePolicy(farmer);
     vm.deal(address(insurance), 1 ether);
 
@@ -141,6 +146,8 @@ contract CropInsuranceTest is Test {
     insurance.withdrawProfit();
     assertGt(address(this).balance, balanceBefore); 
   }
+
+
 
 
 

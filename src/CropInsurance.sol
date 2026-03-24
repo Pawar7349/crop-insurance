@@ -50,7 +50,6 @@ contract CropInsurance {
   event PremiumRefunded(address indexed farmer, uint256 amount);
 
   function registerPolicy(string memory _cropType, uint256 _landArea) external payable{
-
     uint256 requiredPremium = calculatePremium(_cropType, _landArea);
     require(msg.value == requiredPremium, "incorrect premium amount");
 
@@ -109,18 +108,21 @@ contract CropInsurance {
     return policies[_farmer];
   }
 
-  function calculatePremium(string memory _cropType, uint256 _landArea) public pure returns (uint256) {
+  function calculatePremium(string memory _cropType, uint256 _landArea) public view returns (uint256) { 
     
+
+    uint256 ethPrice = uint256(getLatestPrice())/1e8;
     uint256 premium;
 
+
     if(keccak256(abi.encodePacked(_cropType)) == keccak256(abi.encodePacked("wheat"))){
-      premium = _landArea * 0.001 ether;
+      premium = (_landArea * 2 * 1e18) /ethPrice;
     }
     else if(keccak256(abi.encodePacked(_cropType)) == keccak256(abi.encodePacked("rice"))){
-      premium = _landArea * 0.002 ether;
+      premium = (_landArea * 4 * 1e18) /ethPrice;
     }
     else if(keccak256(abi.encodePacked(_cropType)) == keccak256(abi.encodePacked("cotton"))){
-      premium = _landArea * 0.003 ether;
+      premium = (_landArea * 6 * 1e18) /ethPrice;
     }
     else{
       revert("unsupported Crop");
@@ -144,8 +146,6 @@ contract CropInsurance {
     ) = priceFeed.latestRoundData();
     return price;
   }
-
-
 
 }
 
