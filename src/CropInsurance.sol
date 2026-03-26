@@ -28,7 +28,6 @@ contract CropInsurance is AutomationCompatibleInterface{
   address public owner;
   mapping(address => Policy) public policies;
   uint256 public totalActiveCoverage;
-
   address[] public farmers;
   
 
@@ -95,7 +94,10 @@ contract CropInsurance is AutomationCompatibleInterface{
     require(address(this).balance >= payout, "insufficient pool funds");
     require(policies[_farmer].status == PolicyStatus.INACTIVE , "pilicy already Active");
     require(block.timestamp > policies[_farmer].startDate + 7 days, "7 days not passed");
-    payable(_farmer).transfer(payout);
+
+    (bool success, ) = payable(_farmer).call{value: payout}("");
+    require(success, "transfer failed");
+
     policies[_farmer].status = PolicyStatus.EXPIRED;
     emit  PolicyExpired(_farmer);
   }
@@ -103,8 +105,12 @@ contract CropInsurance is AutomationCompatibleInterface{
   function processClaim (address _farmer) external onlyOwner hasActivePolicy(_farmer) {
     uint256 payout = policies[_farmer].coverageAmount;
     require(address(this).balance >= payout, "insufficient pool funds");
-    payable(_farmer).transfer(payout);
-    totalActiveCoverage -= policies[_farmer].coverageAmount;
+
+     totalActiveCoverage -= policies[_farmer].coverageAmount;
+
+    (bool success, ) = payable(_farmer).call{value: payout}("");
+    require(success, "transfer failed");
+
     policies[_farmer].status = PolicyStatus.CLAIMED;
 
     emit ClaimPaid(_farmer, payout);
@@ -117,7 +123,9 @@ contract CropInsurance is AutomationCompatibleInterface{
     require(address(this).balance >= refund, "insufficient pool funds");
     require(block.timestamp > policies[_farmer].endDate, "Policy not expired yet");
 
-    payable(_farmer).transfer(refund);
+    (bool success, ) = payable(_farmer).call{value: refund}("");
+    require(success, "transfer failed"); 
+    
 
     totalActiveCoverage -= policies[_farmer].coverageAmount;
     policies[_farmer].status = PolicyStatus.EXPIRED;
@@ -156,7 +164,8 @@ contract CropInsurance is AutomationCompatibleInterface{
   function withdrawProfit() external onlyOwner{
     require(address(this).balance > totalActiveCoverage, "no excess funds");
     uint256 profit = address(this).balance - totalActiveCoverage;
-    payable(owner).transfer(profit);
+    (bool success, ) = payable(owner).call{value: profit}("");
+    require(success, "transfer failed");
   }
 
   function getLatestPrice() public view returns (int256) {
@@ -194,7 +203,9 @@ contract CropInsurance is AutomationCompatibleInterface{
     require(policies[farmer].status == PolicyStatus.ACTIVE, "No active policy");
     require(block.timestamp > policies[farmer].endDate, "Policy not expired yet");
     
-    payable(farmer).transfer(refund);
+    (bool success, ) = payable(farmer).call{value: refund}("");
+    require(success, "transfer failed");
+
 
     totalActiveCoverage -= policies[farmer].coverageAmount;
     policies[farmer].status = PolicyStatus.EXPIRED;
@@ -203,6 +214,9 @@ contract CropInsurance is AutomationCompatibleInterface{
     emit PremiumRefunded(farmer, refund);
   }
 
+  function getFarmers() external view returns(address[] memory){
+    return farmers;
+  }
 }
 
 
