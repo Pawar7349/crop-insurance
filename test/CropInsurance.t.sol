@@ -65,6 +65,26 @@ contract CropInsuranceTest is Test {
 
   }
 
+  function test_claimPendingRefund() public {
+   
+    vm.deal(farmer, 1 ether);
+    uint256 premium = insurance.calculatePremium("wheat", 5);
+    vm.prank(farmer);
+    insurance.registerPolicy{value: premium}("wheat", 5);
+    
+    
+    vm.warp(block.timestamp + 8 days);
+
+    vm.deal(address(insurance), 1 ether);
+    insurance.claimPendingRefund(farmer);
+
+
+    CropInsurance.Policy memory policy = insurance.getPolicy(farmer);
+    assertGt(farmer.balance, 0);
+    assertEq(uint(policy.status), uint(CropInsurance.PolicyStatus.EXPIRED));
+
+  }
+
   function test_processClaim() public {
     
     vm.deal(farmer, 1 ether);
@@ -110,7 +130,6 @@ contract CropInsuranceTest is Test {
     insurance.processClaim(farmer);
   }
 
-
  function test_expirePolicy() public {
     vm.deal(farmer, 1 ether);
     uint256 premium = insurance.calculatePremium("wheat", 5);
@@ -146,6 +165,39 @@ contract CropInsuranceTest is Test {
     insurance.withdrawProfit();
     assertGt(address(this).balance, balanceBefore); 
   }
+
+  function test_CheckUpkeep() public {
+    
+    vm.deal(farmer , 1 ether);
+  
+    uint256 premium = insurance.calculatePremium("wheat", 5);
+    vm.prank(farmer);
+
+    insurance.registerPolicy{value: premium}("wheat", 5);
+    insurance.activatePolicy(farmer);
+    
+    vm.warp(block.timestamp + 181 days);
+
+    (bool upkeepNeeded, ) = insurance.checkUpkeep("");
+    
+  }
+
+  function test_PerformUpkeep() public {
+     vm.deal(farmer , 1 ether);
+  
+    uint256 premium = insurance.calculatePremium("wheat", 5);
+    vm.prank(farmer);
+
+    insurance.registerPolicy{value: premium}("wheat", 5);
+    insurance.activatePolicy(farmer);
+
+    vm.warp(block.timestamp + 181 days);
+
+  }
+
+  
+
+  
 
 
 

@@ -1,9 +1,10 @@
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
+import "@chainlink/contracts/src/v0.8/interfaces/AutomationCompatibleInterface.sol";
 
 
-contract CropInsurance {
+contract CropInsurance is AutomationCompatibleInterface{
   AggregatorV3Interface public priceFeed;
 
   enum PolicyStatus {
@@ -27,6 +28,8 @@ contract CropInsurance {
   address public owner;
   mapping(address => Policy) public policies;
   uint256 public totalActiveCoverage;
+
+  address[] public farmers;
   
 
   constructor(address _priceFeed){
@@ -52,7 +55,7 @@ contract CropInsurance {
   function registerPolicy(string memory _cropType, uint256 _landArea) external payable{
     uint256 requiredPremium = calculatePremium(_cropType, _landArea);
     require(msg.value == requiredPremium, "incorrect premium amount");
-
+  
     require(policies[msg.sender].status == PolicyStatus.INACTIVE || policies[msg.sender].farmer == address(0), "Policy already exiests");
 
     uint256 premium = msg.value;
@@ -69,6 +72,8 @@ contract CropInsurance {
       status: PolicyStatus.INACTIVE
     });
 
+    farmers.push(msg.sender);
+
     emit PolicyCreated(msg.sender, _cropType, coverage);
 
   }
@@ -78,6 +83,15 @@ contract CropInsurance {
     require(policies[_farmer].status == PolicyStatus.INACTIVE, "Policy not inactive");
     policies[_farmer].status = PolicyStatus.ACTIVE;
     totalActiveCoverage += policies[_farmer].coverageAmount;
+  }
+
+  function claimPendingRefund(address _farmer) external {
+    require(policies[_farmer].status == PolicyStatus.INACTIVE , "pilicy already Active");
+    require(block.timestamp > policies[_farmer].startDate + 7 days, "7 days not passed");
+    uint256 payout = policies[_farmer].premiumPaid;
+    payable(_farmer).transfer(payout);
+    policies[_farmer].status = PolicyStatus.EXPIRED;
+    emit  PolicyExpired(_farmer);
   }
 
   function processClaim (address _farmer) external onlyOwner hasActivePolicy(_farmer) {
@@ -145,6 +159,39 @@ contract CropInsurance {
       ,
     ) = priceFeed.latestRoundData();
     return price;
+  }
+
+  function checkUpkeep(bytes calldata) external view override returns (bool upkeepNeeded, bytes memory){
+
+    for(uint256 i=0; i< farmers.length; i++) {
+      address farmer = farmers[i];
+
+      if(
+        policies[farmer].status == PolicyStatus.ACTIVE &&
+        block.timestamp > policies[farmer].endDate
+      ) {
+        upkeepNeeded =  true;
+        return (true, abi.encode(farmer));
+      }
+    }
+    upkeepNeeded = false;
+  }
+
+
+  function performUpkeep(bytes calldata performData) external override {
+    address farmer = abi.decode(performData, (address));
+
+    require(policies[farmer].status == PolicyStatus.ACTIVE, "No active policy");
+    require(block.timestamp > policies[farmer].endDate, "Policy not expired yet");
+    
+    uint256 refund = policies[farmer].premiumPaid / 2;
+    payable(farmer).transfer(refund);
+
+    totalActiveCoverage -= policies[farmer].coverageAmount;
+    policies[farmer].status = PolicyStatus.EXPIRED;
+
+    emit PolicyExpired(farmer);
+    emit PremiumRefunded(farmer, refund);
   }
 
 }
