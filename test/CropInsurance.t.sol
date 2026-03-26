@@ -130,7 +130,7 @@ contract CropInsuranceTest is Test {
     insurance.processClaim(farmer);
   }
 
- function test_expirePolicy() public {
+  function test_expirePolicy() public {
     vm.deal(farmer, 1 ether);
     uint256 premium = insurance.calculatePremium("wheat", 5);
     vm.prank(farmer);
@@ -147,7 +147,7 @@ contract CropInsuranceTest is Test {
     CropInsurance.Policy memory policy = insurance.getPolicy(farmer);
     assertEq(uint(policy.status), uint(CropInsurance.PolicyStatus.EXPIRED));
     assertGt(farmer.balance, balanceBefore);
-}
+  }
 
   function test_withdrawProfit() public{
     vm.deal(farmer, 1 ether);
@@ -195,7 +195,7 @@ contract CropInsuranceTest is Test {
 
   }
 
-  
+
 
   
 
