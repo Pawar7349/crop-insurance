@@ -256,7 +256,59 @@ contract CropInsuranceTest is Test {
     insurance.registerPolicy{value: premium}("wheat", 5);
   }
 
+  function test_withdrawNoProfit() public {
+    vm.deal(farmer, 1 ether);
+
+    uint256 premium = insurance.calculatePremium("wheat", 5);
+    vm.prank(farmer);
+    insurance.registerPolicy{value: premium}("wheat", 5);
+    insurance.activatePolicy(farmer);
+    
+
+    vm.expectRevert("no excess funds");
+    insurance.withdrawProfit();
+  }
+
+  function test_AllCropTypes() public {
+    address farmer2 = makeAddr("farmer2");
+    address farmer3 = makeAddr("farmer3");
+
+    vm.deal(farmer, 1 ether);
+    vm.deal(farmer2, 1 ether);
+    vm.deal(farmer3, 1 ether);
+
+    
+    uint256 wheatPremium = insurance.calculatePremium("wheat", 5);
+    vm.prank(farmer);
+    insurance.registerPolicy{value: wheatPremium}("wheat", 5);
+    assertEq(wheatPremium, 0.005 ether);
+
   
+    uint256 ricePremium = insurance.calculatePremium("rice", 5);
+    vm.prank(farmer2);
+    insurance.registerPolicy{value: ricePremium}("rice", 5);
+    assertEq(ricePremium, 0.01 ether);
+
+    
+    uint256 cottonPremium = insurance.calculatePremium("cotton", 5);
+    vm.prank(farmer3);
+    insurance.registerPolicy{value: cottonPremium}("cotton", 5);
+    assertEq(cottonPremium, 0.015 ether);
+}
+
+  function test_OnlyOwnerCanActivate() public {
+    vm.deal(farmer, 1 ether);
+    
+    uint256 premium = insurance.calculatePremium("wheat", 5);
+    vm.prank(farmer);
+    insurance.registerPolicy{value: premium}("wheat", 5);
+    
+    vm.prank(farmer);
+    vm.expectRevert("not owner");
+    insurance.activatePolicy(farmer);
+  }
+
+    
 
 
 
