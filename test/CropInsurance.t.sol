@@ -76,7 +76,8 @@ contract CropInsuranceTest is Test {
     vm.warp(block.timestamp + 8 days);
 
     vm.deal(address(insurance), 1 ether);
-    insurance.claimPendingRefund(farmer);
+    vm.prank(farmer);
+    insurance.claimPendingRefund();
 
 
     CropInsurance.Policy memory policy = insurance.getPolicy(farmer);
@@ -194,6 +195,68 @@ contract CropInsuranceTest is Test {
     vm.warp(block.timestamp + 181 days);
 
   }
+
+  function test_claimPendingRefund_TooEarly() public {
+    vm.deal(farmer, 1 ether);
+    uint256 premium = insurance.calculatePremium("wheat", 5);
+    
+    vm.prank(farmer);
+    insurance.registerPolicy{value: premium}("wheat", 5);
+    
+    
+    vm.warp(block.timestamp + 3 days);
+    
+    vm.prank(farmer);
+    vm.expectRevert("7 days not passed");
+    insurance.claimPendingRefund();
+  }
+
+  function test_claimPendingRefund_AlreadyActive() public{
+    vm.deal(farmer, 1 ether);
+
+    uint256 premium = insurance.calculatePremium("wheat", 5);
+    vm.prank(farmer);
+    insurance.registerPolicy{value: premium}("wheat", 5);
+
+    insurance.activatePolicy(farmer);
+    vm.warp(block.timestamp + 8 days);
+
+    vm.prank(farmer);
+
+    vm.expectRevert("policy already active");
+    insurance.claimPendingRefund();
+
+
+  }
+
+  function test_expirePolicy_TooEarly() public {
+    vm.deal(farmer, 1 ether);
+    
+    uint256 premium = insurance.calculatePremium("wheat", 5);
+    vm.prank(farmer);
+    insurance.registerPolicy{value: premium}("wheat", 5);
+    insurance.activatePolicy(farmer);
+    vm.warp(block.timestamp + 90 days);
+    
+    vm.prank(farmer);
+    vm.expectRevert("Policy not expired yet");
+    insurance.expirePolicy(farmer);
+
+  }
+
+  function test_DoubleRegistration() public {
+    vm.deal(farmer, 1 ether);
+    
+    uint256 premium = insurance.calculatePremium("wheat", 5);
+    vm.prank(farmer);
+    insurance.registerPolicy{value: premium}("wheat", 5);
+
+    vm.prank(farmer);
+    vm.expectRevert("Policy already exiests");
+    insurance.registerPolicy{value: premium}("wheat", 5);
+  }
+
+  
 
 
 

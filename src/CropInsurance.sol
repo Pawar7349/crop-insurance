@@ -55,7 +55,7 @@ contract CropInsurance is AutomationCompatibleInterface{
     uint256 requiredPremium = calculatePremium(_cropType, _landArea);
     require(msg.value == requiredPremium, "incorrect premium amount");
   
-    require(policies[msg.sender].status == PolicyStatus.INACTIVE || policies[msg.sender].farmer == address(0), "Policy already exiests");
+    require(policies[msg.sender].farmer == address(0), "Policy already exiests");
 
     uint256 premium = msg.value;
     uint256 coverage = premium * 10;
@@ -81,37 +81,39 @@ contract CropInsurance is AutomationCompatibleInterface{
 
   }
 
-
   function activatePolicy(address _farmer) external onlyOwner {
     require(policies[_farmer].status == PolicyStatus.INACTIVE, "Policy not inactive");
     policies[_farmer].status = PolicyStatus.ACTIVE;
     totalActiveCoverage += policies[_farmer].coverageAmount;
   }
 
-  function claimPendingRefund(address _farmer) external {
+  function claimPendingRefund() external {
 
-    uint256 payout = policies[_farmer].premiumPaid;
+    Policy storage policy = policies[msg.sender];
+
+    uint256 payout = policy.premiumPaid;
+
     require(address(this).balance >= payout, "insufficient pool funds");
-    require(policies[_farmer].status == PolicyStatus.INACTIVE , "pilicy already Active");
-    require(block.timestamp > policies[_farmer].startDate + 7 days, "7 days not passed");
+    require(policy.status == PolicyStatus.INACTIVE , "policy already active");
+    require(block.timestamp > policy.startDate + 7 days, "7 days not passed");
 
-    (bool success, ) = payable(_farmer).call{value: payout}("");
+    policy.status = PolicyStatus.EXPIRED;
+
+    (bool success, ) = payable(msg.sender).call{value: payout}("");
     require(success, "transfer failed");
 
-    policies[_farmer].status = PolicyStatus.EXPIRED;
-    emit  PolicyExpired(_farmer);
+
+    emit  PolicyExpired(msg.sender);
   }
 
   function processClaim (address _farmer) external onlyOwner hasActivePolicy(_farmer) {
     uint256 payout = policies[_farmer].coverageAmount;
     require(address(this).balance >= payout, "insufficient pool funds");
 
-     totalActiveCoverage -= policies[_farmer].coverageAmount;
-
+     totalActiveCoverage -= payout;
+     policies[_farmer].status = PolicyStatus.CLAIMED;
     (bool success, ) = payable(_farmer).call{value: payout}("");
     require(success, "transfer failed");
-
-    policies[_farmer].status = PolicyStatus.CLAIMED;
 
     emit ClaimPaid(_farmer, payout);
 
@@ -122,13 +124,12 @@ contract CropInsurance is AutomationCompatibleInterface{
     uint256 refund = policies[_farmer].premiumPaid/2;
     require(address(this).balance >= refund, "insufficient pool funds");
     require(block.timestamp > policies[_farmer].endDate, "Policy not expired yet");
-
+    
+    policies[_farmer].status = PolicyStatus.EXPIRED;
+    totalActiveCoverage -= policies[_farmer].coverageAmount;
     (bool success, ) = payable(_farmer).call{value: refund}("");
     require(success, "transfer failed"); 
     
-
-    totalActiveCoverage -= policies[_farmer].coverageAmount;
-    policies[_farmer].status = PolicyStatus.EXPIRED;
 
     emit PolicyExpired(_farmer);
     emit PremiumRefunded(_farmer, refund);
@@ -197,19 +198,17 @@ contract CropInsurance is AutomationCompatibleInterface{
 
   function performUpkeep(bytes calldata performData) external override {
     address farmer = abi.decode(performData, (address));
-
     uint256 refund = policies[farmer].premiumPaid / 2;
     require(address(this).balance >= refund, "insufficient pool funds");
     require(policies[farmer].status == PolicyStatus.ACTIVE, "No active policy");
     require(block.timestamp > policies[farmer].endDate, "Policy not expired yet");
     
+    policies[farmer].status = PolicyStatus.EXPIRED;
+    totalActiveCoverage -= policies[farmer].coverageAmount;
     (bool success, ) = payable(farmer).call{value: refund}("");
     require(success, "transfer failed");
 
-
-    totalActiveCoverage -= policies[farmer].coverageAmount;
-    policies[farmer].status = PolicyStatus.EXPIRED;
-
+    
     emit PolicyExpired(farmer);
     emit PremiumRefunded(farmer, refund);
   }
@@ -217,7 +216,12 @@ contract CropInsurance is AutomationCompatibleInterface{
   function getFarmers() external view returns(address[] memory){
     return farmers;
   }
+
 }
+
+
+
+
 
 
 
